@@ -1,0 +1,87 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+model Credential {
+  id            String   @id @default(uuid())
+  vapiApiKey    String?
+  twilioSid     String?
+  twilioToken   String?
+  twilioNumber  String?
+  updatedAt     DateTime @updatedAt
+}
+
+model Agent {
+  id               String            @id @default(uuid())
+  name             String
+  systemPrompt     String
+  voiceId          String            @default("eleven-labs-rachel")
+  firstMessage     String
+  vapiAgentId      String?
+  extractionSchema String            // JSON string containing schema: e.g. [{"name":"rating","type":"number"},{"name":"reason","type":"string"}]
+  createdAt        DateTime          @default(now())
+  campaigns        Campaign[]
+}
+
+model Campaign {
+  id        String    @id @default(uuid())
+  name      String
+  agentId   String
+  agent     Agent     @relation(fields: [agentId], references: [id])
+  status    String    @default("PENDING") // PENDING, RUNNING, COMPLETED
+  createdAt DateTime  @default(now())
+  contacts  Contact[]
+}
+
+model Contact {
+  id         String   @id @default(uuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name       String
+  phone      String
+  variables  String?  // JSON string representing contact specific variables (e.g. {"appointment_date":"tomorrow"})
+  status     String   @default("PENDING") // PENDING, CALLING, COMPLETED, FAILED
+  calls      Call[]
+}
+
+model Call {
+  id             String           @id @default(uuid())
+  contactId      String
+  contact        Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  vapiCallId     String?          @unique
+  status         String           @default("initiated") // initiated, ringing, speaking, completed, failed
+  duration       Int              @default(0) // seconds
+  recordingUrl   String?
+  transcript     String?
+  cost           Float            @default(0.0)
+  createdAt      DateTime         @default(now())
+  extractions    CallExtraction[]
+}
+
+model CallExtraction {
+  id     String @id @default(uuid())
+  callId String
+  call   Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
+  key    String
+  value  String
+}
+
+model CrmConfig {
+  id             String   @id @default(uuid())
+  webhookUrl     String
+  authHeaderName String?
+  authHeaderVal  String?
+  isEnabled      Boolean  @default(true)
+}
